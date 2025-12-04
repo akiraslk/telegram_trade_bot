@@ -1,38 +1,41 @@
 import logging
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext
 from flask import Flask
 import threading
+import asyncio
 
-BOT_TOKEN = "8327778526:AAHtQPM5vPbZV_KpKy70pcoknjRlqJ9ewWY"
+# ---------------- CONFIG ----------------
+BOT_TOKEN = "8327778526:AAHtQPM5vPbZV_KpKy70pcoknjRlqJ9ewWY"  # replace locally
 
-# ---------------- Flask Keepalive Server -------------------
+# ---------------- Flask Keepalive ----------------
+flask_app = Flask(__name__)
 
-app = Flask(__name__)
-
-@app.route('/')
+@flask_app.route('/')
 def home():
     return "Bot running successfully!"
 
 def run_flask():
-    app.run(host='0.0.0.0', port=10000)
+    flask_app.run(host="0.0.0.0", port=10000)
 
-# ---------------- Telegram Bot Logic -----------------------
-
-async def start(update: Update, context):
+# ---------------- Telegram Bot ----------------
+async def start(update: Update, context: CallbackContext.DEFAULT_TYPE):
     await update.message.reply_text("Bot is running 24/7 on Render!")
 
-def main():
+async def main_bot():
     logging.basicConfig(level=logging.INFO)
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
+    # Handlers
+    app.add_handler(CommandHandler("start", start))
 
-    telegram_app.add_handler(CommandHandler("start", start))
+    # Start polling
+    await app.run_polling()
 
-    # Start Flask server in separate thread
-    threading.Thread(target=run_flask).start()
-
-    telegram_app.run_polling()
-
+# ---------------- RUN BOTH ----------------
 if __name__ == "__main__":
-    main()
+    # Start Flask server in separate thread
+    threading.Thread(target=run_flask, daemon=True).start()
+
+    # Run Telegram bot in async loop
+    asyncio.run(main_bot())
